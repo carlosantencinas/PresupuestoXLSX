@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import Table from "@mui/material/Table";
@@ -19,29 +19,25 @@ const lightTheme = createTheme({
   palette: {
     mode: "light",
     primary: {
-      main: "#f50057", // rosa brillante
-      light: "#ff4081",
-      dark: "#c51162",
+      main: "#f50057",
     },
     secondary: {
-      main: "#f50057", // rosa brillante
-      light: "#ff4081",
-      dark: "#c51162",
+      main: "#f50057",
     },
     background: {
-      default: "#f5f5f5", // gris muy claro para fondo general
-      paper: "#ffffff", // blanco para tarjetas
+      default: "#f5f5f5",
+      paper: "#ffffff",
     },
     text: {
-      primary: "#222222", // negro suave para texto principal
-      secondary: "#555555", // gris medio para texto secundario
+      primary: "#222222",
+      secondary: "#555555",
     },
   },
   components: {
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderColor: "#e0e0e0", // borde claro para tablas
+          borderColor: "#e0e0e0",
         },
       },
     },
@@ -88,7 +84,6 @@ function DataTable({
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
 
-  // Filtrar filas según filtros
   const filteredRows = rows.filter((row) =>
     headers.every((_, idx) => {
       if (!filters[idx]) return true;
@@ -97,7 +92,6 @@ function DataTable({
     })
   );
 
-  // Ordenar filas
   const sortedRows = [...filteredRows];
   if (sortColumn !== null) {
     sortedRows.sort((a, b) => {
@@ -114,7 +108,6 @@ function DataTable({
     });
   }
 
-  // Paginación
   const paginatedRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const handleFilterChange = (idx, value) => {
@@ -171,12 +164,6 @@ function DataTable({
                     placeholder="Filtrar"
                     value={filters[i] || ""}
                     onChange={(e) => handleFilterChange(i, e.target.value)}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        "& fieldset": { borderColor: "primary.main" },
-                        "&:hover fieldset": { borderColor: "primary.light" },
-                      },
-                    }}
                   />
                 </TableCell>
               ))}
@@ -231,43 +218,26 @@ function DataTable({
 function App() {
   const [sheets, setSheets] = useState({});
   const [selectedItem, setSelectedItem] = useState(null);
-  const rowsPerPage = 5;  // número de items que se muestran en la principal
 
-  useEffect(() => {
-    fetch("/mi_presupuesto.xlsx")
-      .then((res) => res.arrayBuffer())
-      .then((data) => {
-        const wb = XLSX.read(data, { type: "array" });
-        const parsed = {};
-        wb.SheetNames.forEach((name) => {
-          const sheet = wb.Sheets[name];
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          parsed[name] = rows;
-        });
-        setSheets(parsed);
+  const handleImportExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const parsed = {};
+      workbook.SheetNames.forEach((name) => {
+        const sheet = workbook.Sheets[name];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        parsed[name] = rows;
       });
-  }, []);
+      setSheets(parsed);
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
-  if (!sheets["Presupuesto_General"]) return <p>Cargando...</p>;
-
-  const presupuestoHeaders = sheets["Presupuesto_General"][0];
-  const presupuestoRows = sheets["Presupuesto_General"].slice(1);
-
-  const materialesHeaders = sheets["Asignación_Materiales"]?.[0] || [];
-  const materialesRows = sheets["Asignación_Materiales"]?.slice(1) || [];
-
-  const manoObraHeaders = sheets["Asignación_ManoObra"]?.[0] || [];
-  const manoObraRows = sheets["Asignación_ManoObra"]?.slice(1) || [];
-
-  // Filtrar materiales y mano de obra según el ítem seleccionado
-  const materialesFiltrados = selectedItem
-    ? materialesRows.filter((m) => m[0] === selectedItem)
-    : [];
-  const manoObraFiltrada = selectedItem
-    ? manoObraRows.filter((m) => m[0] === selectedItem)
-    : [];
-
-  // Exportar PDF
   const exportPDF = () => {
     const element = document.getElementById("reporte");
     const options = {
@@ -280,17 +250,29 @@ function App() {
     html2pdf().set(options).from(element).save();
   };
 
+  const presupuestoHeaders = sheets["Presupuesto_General"]?.[0] || [];
+  const presupuestoRows = sheets["Presupuesto_General"]?.slice(1) || [];
+  const materialesHeaders = sheets["Asignación_Materiales"]?.[0] || [];
+  const materialesRows = sheets["Asignación_Materiales"]?.slice(1) || [];
+  const manoObraHeaders = sheets["Asignación_ManoObra"]?.[0] || [];
+  const manoObraRows = sheets["Asignación_ManoObra"]?.slice(1) || [];
+
+  const materialesFiltrados = selectedItem
+    ? materialesRows.filter((m) => m[0] === selectedItem)
+    : [];
+  const manoObraFiltrada = selectedItem
+    ? manoObraRows.filter((m) => m[0] === selectedItem)
+    : [];
+
   return (
     <ThemeProvider theme={lightTheme}>
       <Box sx={{ padding: 4, fontFamily: "Arial", bgcolor: "background.default", minHeight: "100vh" }}>
         <Box
-          id="reporte"
           sx={{
-            backgroundColor: "background.paper",
-            padding: 3,
-            borderRadius: 2,
-            boxShadow: 3,
-            color: "text.primary",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
           }}
         >
           <TituloConIcono
@@ -299,64 +281,54 @@ function App() {
             colorFondoIcono="#ffd217"
             colorTexto="#60091a"
           />
-
-<Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mb: 3 }}>
-  <input
-    type="file"
-    accept=".xlsx, .xls"
-    onChange={(e) => handleImportExcel(e)}
-    style={{ display: "none" }}
-    id="import-excel"
-  />
-  <label htmlFor="import-excel">
-    <Button variant="outlined" component="span" color="secondary">
-      Importar Excel
-    </Button>
-  </label>
-  <Button variant="contained" color="primary" onClick={exportPDF}>
-    Exportar a PDF
-  </Button>
-</Box>
-
-
-
-          <DataTable
-            tableTitle="Items del Presupuesto"
-            headers={presupuestoHeaders}
-            rows={presupuestoRows}
-            rowsPerPage={rowsPerPage}
-            onRowClick={setSelectedItem}
-            selectedRow={selectedItem}
-          />
-
-          {selectedItem && (
-            <>
-              <Typography variant="h6" sx={{ mt: 4, color: "primary.dark" }}>
-                Materiales asignados al ítem: {selectedItem}
-              </Typography>
-              <DataTable
-                tableTitle="Materiales"
-                headers={materialesHeaders}
-                rows={materialesFiltrados}
-                rowsPerPage={rowsPerPage}
-                onRowClick={null}
-                selectedRow={null}
-              />
-
-              <Typography variant="h6" sx={{ mt: 4, color: "primary.dark" }}>
-                Mano de Obra asignada al ítem: {selectedItem}
-              </Typography>
-              <DataTable
-                tableTitle="Mano de Obra"
-                headers={manoObraHeaders}
-                rows={manoObraFiltrada}
-                rowsPerPage={rowsPerPage}
-                onRowClick={null}
-                selectedRow={null}
-              />
-            </>
-          )}
+          <Box>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              id="input-excel"
+              onChange={handleImportExcel}
+              style={{ display: "none" }}
+            />
+            <label htmlFor="input-excel">
+              <Button variant="contained" component="span" sx={{ mr: 2 }}>
+                Subir Excel
+              </Button>
+            </label>
+            <Button variant="outlined" onClick={exportPDF}>
+              Exportar PDF
+            </Button>
+          </Box>
         </Box>
+
+        {presupuestoHeaders.length > 0 ? (
+          <Box id="reporte">
+            <DataTable
+              headers={presupuestoHeaders}
+              rows={presupuestoRows}
+              onRowClick={(codigo) => setSelectedItem(codigo)}
+              selectedRow={selectedItem}
+              tableTitle="Presupuesto General"
+            />
+            {selectedItem && (
+              <>
+                <DataTable
+                  headers={materialesHeaders}
+                  rows={materialesFiltrados}
+                  tableTitle="Materiales del Ítem Seleccionado"
+                />
+                <DataTable
+                  headers={manoObraHeaders}
+                  rows={manoObraFiltrada}
+                  tableTitle="Mano de Obra del Ítem Seleccionado"
+                />
+              </>
+            )}
+          </Box>
+        ) : (
+          <Typography variant="h6" color="text.secondary" align="center">
+            Sube un archivo Excel con las hojas necesarias para comenzar.
+          </Typography>
+        )}
       </Box>
     </ThemeProvider>
   );
